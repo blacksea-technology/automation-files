@@ -1,0 +1,155 @@
+version: '3.8'
+
+services: # Services définis dans le fichier Docker Compose
+
+  serial-app:
+    image: serial:v1.0.0
+    container_name: serial-app
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://serialdb:5432/serialdb 
+      - SPRING_DATASOURCE_USERNAME=admin 
+      - SPRING_DATASOURCE_PASSWORD=admin123
+    depends_on: 
+      - serialdb 
+    networks: 
+      - blackseatechnology-network 
+
+  
+  serialdb:
+    image: postgres:16.2-alpine 
+    container_name: serialdb 
+    restart: always 
+    environment:
+      POSTGRES_DB: serialdb 
+      POSTGRES_USER: admin 
+      POSTGRES_PASSWORD: admin123
+    networks:
+      - blackseatechnology-network 
+  
+  reference-app:
+    image: reference:v1.0.0
+    container_name: reference-app
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://referencedb:5432/referencedb 
+      - SPRING_DATASOURCE_USERNAME=admin 
+      - SPRING_DATASOURCE_PASSWORD=admin123
+    depends_on: 
+      - referencedb 
+    networks: 
+      - blackseatechnology-network 
+
+  referencedb:
+    image: postgres:16.2-alpine 
+    container_name: referencedb 
+    restart: always 
+    environment:
+      POSTGRES_DB: referencedb 
+      POSTGRES_USER: admin 
+      POSTGRES_PASSWORD: admin123
+    networks:
+      - blackseatechnology-network 
+
+  manifest-app:
+    image: manifest:v1.0.0
+    container_name: manifest-app
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://manifestdb:5432/manifestdb 
+      - SPRING_DATASOURCE_USERNAME=admin 
+      - SPRING_DATASOURCE_PASSWORD=admin123
+    depends_on: 
+      - manifestdb 
+    networks: 
+      - blackseatechnology-network 
+
+  
+  manifestdb:
+    image: postgres:16.2-alpine 
+    container_name: manifestdb 
+    restart: always 
+    environment:
+      POSTGRES_DB: manifestdb 
+      POSTGRES_USER: admin 
+      POSTGRES_PASSWORD: admin123
+    networks:
+      - blackseatechnology-network 
+
+  consolidation-app:
+    image: consolidation:v1.0.0
+    container_name: consolidation-app
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://consolidationdb:5432/consolidationdb 
+      - SPRING_DATASOURCE_USERNAME=admin 
+      - SPRING_DATASOURCE_PASSWORD=admin123
+    depends_on: 
+      - consolidationdb 
+    networks: 
+      - blackseatechnology-network 
+
+  
+  consolidationdb:
+    image: postgres:16.2-alpine 
+    container_name: consolidationdb 
+    restart: always 
+    environment:
+      POSTGRES_DB: consolidationdb 
+      POSTGRES_USER: admin 
+      POSTGRES_PASSWORD: admin123
+    networks:
+      - blackseatechnology-network 
+
+  smartkey-app: # Déclaration du service smartkey-app
+    image: smartkey:v1.0.0 # Image utilisée pour le service smartkey-app
+    container_name: smartkey-app # Nom du conteneur smartkey-app
+    # ports: # Mapping des ports
+    #   - '8550:8550' # Mappage du port 8550 de l'hôte au port 8550 du conteneur
+    environment: # Variables d'environnement du conteneur
+      - SPRING_PROFILES_ACTIVE=dev # Activation du profil Spring pour le mode développement
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://smartKeydb:5432/smartKeydb # URL de la source de données Spring pour la base de données PostgreSQL
+      - SPRING_DATASOURCE_USERNAME=admin # Nom d'utilisateur de la source de données Spring
+      - SPRING_DATASOURCE_PASSWORD=admin123 # Mot de passe de la source de données Spring
+    depends_on: # Dépendance du service
+      - smartKeydb # Ce service dépend du service SmartKeydb
+    networks: # Réseaux auxquels le service est connecté
+      - blackseatechnology-network # Connecté au réseau blackseatechnology-network
+
+  # Configuration du service SmartKeydb
+  smartKeydb: # Déclaration du service SmartKeydb
+    image: postgres:16.2-alpine  # Utilisation de l'image postgres
+    container_name: smartKeydb # Nom du conteneur SmartKeydb
+    restart: always # Toujours redémarrer le conteneur en cas d'échec
+    environment: # Configuration des variables d'environnement
+      POSTGRES_DB: smartKeydb # Nom de la base de données PostgreSQL
+      POSTGRES_USER: admin # Nom de l'utilisateur PostgreSQL
+      POSTGRES_PASSWORD: admin123 # Mot de passe de l'utilisateur PostgreSQL
+    # ports: # Mappage des ports
+    #   - "5432:5432" # Mappage du port 5432 de l'hôte au port 5432 du conteneur
+    networks: # Connexion aux réseaux
+      - blackseatechnology-network # Connexion au réseau blackseatechnology-network
+
+  # Configuration du service Gateway
+  gateway-app: # Définition du nom du service application dans le docker-compose
+    image: gateway:v1.0.0 # Nom de mon image
+    container_name: gateway-app # Nom affiché lorsque le conteneur est prêt
+    ports:
+      - '8340:8340' # Mappage de port pour exposer mon application
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev # Variables d'environnement utilisées pour modifier les fonctionnalités du conteneur
+    networks:
+      - blackseatechnology-network
+    depends_on:
+      - smartkey-app # Déclaration de la dépendance du service gateway-app sur smartkey-app
+
+#Declaration of my Network
+networks: # Définition des réseaux
+  blackseatechnology-network: # Nom du réseau definic
+    name: blackseatechnology-network # Nom du réseau spécifié
+    driver: bridge # Utilisation du driver bridge
+    ipam: # Gestion des adresses IP
+      config: # Configuration des paramètres IPAM
+        - subnet: 172.18.0.0/16 # Sous-réseau IP pour le réseau
+          gateway: 172.18.0.1 # Passerelle du sous-réseau IP
+
