@@ -148,8 +148,8 @@ networks: # Définition des réseaux
   blackseatechnology-network: # Nom du réseau definic
     name: blackseatechnology-network # Nom du réseau spécifié
     driver: bridge # Utilisation du driver bridge
-    ipam: # Gestion des adresses IP
-      config: # Configuration des paramètres IPAM
-        - subnet: 172.18.0.0/16 # Sous-réseau IP pour le réseau
-          gateway: 172.18.0.1 # Passerelle du sous-réseau IP
+    # ipam: # Gestion des adresses IP
+    #   config: # Configuration des paramètres IPAM
+    #     - subnet: 172.18.0.0/16 # Sous-réseau IP pour le réseau
+    #       gateway: 172.18.0.1 # Passerelle du sous-réseau IP
 
