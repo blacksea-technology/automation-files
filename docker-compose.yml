@@ -142,10 +142,10 @@ services: # Services définis dans le fichier Docker Compose
     ports:
       - '8340:8340' # Mappage de port pour exposer mon application
     environment:
-      SPRING_PROFILES_ACTIVE: dev # Variables d'environnement utilisées pour modifier les fonctionnalités du conteneur
-      VIRTUAL_HOST: smartcustoms.app
-      LETSENCRYPT_HOST: smartcustoms.app
-      VIRTUAL_PORT: 8340
+      - SPRING_PROFILES_ACTIVE=dev # Variables d'environnement utilisées pour modifier les fonctionnalités du conteneur
+      - VIRTUAL_HOST=smartcustoms.app
+      - LETSENCRYPT_HOST=smartcustoms.app
+      - VIRTUAL_PORT=8340
     networks:
       - blackseatechnology-network
     depends_on:
@@ -158,10 +158,10 @@ services: # Services définis dans le fichier Docker Compose
     ports:
       - 5050:80
     environment:
-      PGADMIN_DEFAULT_EMAIL=jean-michel.masikini@blackseatechnology.com
-      PGADMIN_DEFAULT_PASSWORD=admin123
-      VIRTUAL_HOST=pgadmin.smartcustoms.app
-      LETSENCRYPT_HOST=pgadmin.smartcustoms.app
+      - PGADMIN_DEFAULT_EMAIL=jean-michel.masikini@blackseatechnology.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+      - VIRTUAL_HOST=pgadmin.smartcustoms.app
+      - LETSENCRYPT_HOST=pgadmin.smartcustoms.app
     networks:
       - blackseatechnology-network  
 
