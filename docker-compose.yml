@@ -5,6 +5,7 @@ services: # Services définis dans le fichier Docker Compose
   serial-app:
     image: serial:v1.0.0
     container_name: serial-app
+    restart: always 
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:postgresql://serialdb:5432/serialdb 
@@ -54,6 +55,7 @@ services: # Services définis dans le fichier Docker Compose
   manifest-app:
     image: manifest:v1.0.0
     container_name: manifest-app
+    restart: always 
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:postgresql://manifestdb:5432/manifestdb 
@@ -79,6 +81,7 @@ services: # Services définis dans le fichier Docker Compose
   consolidation-app:
     image: consolidation:v1.0.0
     container_name: consolidation-app
+    restart: always 
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:postgresql://consolidationdb:5432/consolidationdb 
@@ -104,6 +107,7 @@ services: # Services définis dans le fichier Docker Compose
   smartkey-app: # Déclaration du service smartkey-app
     image: smartkey:v1.0.0 # Image utilisée pour le service smartkey-app
     container_name: smartkey-app # Nom du conteneur smartkey-app
+    restart: always 
     # ports: # Mapping des ports
     #   - '8550:8550' # Mappage du port 8550 de l'hôte au port 8550 du conteneur
     environment: # Variables d'environnement du conteneur
@@ -134,14 +138,64 @@ services: # Services définis dans le fichier Docker Compose
   gateway-app: # Définition du nom du service application dans le docker-compose
     image: gateway:v1.0.0 # Nom de mon image
     container_name: gateway-app # Nom affiché lorsque le conteneur est prêt
+    restart: always 
     ports:
       - '8340:8340' # Mappage de port pour exposer mon application
     environment:
-      - SPRING_PROFILES_ACTIVE=dev # Variables d'environnement utilisées pour modifier les fonctionnalités du conteneur
+      SPRING_PROFILES_ACTIVE: dev # Variables d'environnement utilisées pour modifier les fonctionnalités du conteneur
+      VIRTUAL_HOST: smartcustoms.app
+      LETSENCRYPT_HOST: smartcustoms.app
+      VIRTUAL_PORT: 8340
     networks:
       - blackseatechnology-network
     depends_on:
       - smartkey-app # Déclaration de la dépendance du service gateway-app sur smartkey-app
+
+  pg-admin:
+    image: dpage/pgadmin4:8.4
+    restart: always
+    container_name: pg-admin
+    ports:
+      - 5050:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL=jean-michel.masikini@blackseatechnology.com
+      PGADMIN_DEFAULT_PASSWORD=admin123
+      VIRTUAL_HOST=pgadmin.smartcustoms.app
+      LETSENCRYPT_HOST=pgadmin.smartcustoms.app
+    networks:
+      - blackseatechnology-network  
+
+#Nginx proxy configuration
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    container_name: nginx-proxy
+    restart: always 
+    ports:
+    - "80:80"
+    - "443:443"
+    networks:
+      - blackseatechnology-network
+    environment:
+      DHPARAM_GENERATION: "false"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./etc/nginx/certs:/etc/nginx/certs
+      - ./etc/nginx/vhost.d:/etc/nginx/vhost.d
+      - nginx_proxy_html:/usr/share/nginx/html
+  nginx-proxy-letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    container_name: nginx-proxy-letsencrypt
+    restart: always 
+    networks:
+    - blackseatechnology-network
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - ./etc/nginx/certs:/etc/nginx/certs
+    - ./etc/nginx/vhost.d:/etc/nginx/vhost.d
+    - nginx_proxy_html:/usr/share/nginx/html
+    environment:
+      DEFAULT_EMAIL: jean-michel.masikini@blackseatechnology.com
+      NGINX_PROXY_CONTAINER: nginx-proxy
 
 #Declaration of my Network
 networks: # Définition des réseaux
@@ -152,4 +206,5 @@ networks: # Définition des réseaux
     #   config: # Configuration des paramètres IPAM
     #     - subnet: 172.18.0.0/16 # Sous-réseau IP pour le réseau
     #       gateway: 172.18.0.1 # Passerelle du sous-réseau IP
-
+volumes:
+    nginx_proxy_html:
