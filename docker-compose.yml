@@ -5,7 +5,7 @@ services: # Services définis dans le fichier Docker Compose
   serial-app:
     image: serial:v1.0.0
     container_name: serial-app
-    restart: always 
+    restart: unless-stopped 
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:postgresql://serialdb:5432/serialdb 
@@ -20,17 +20,21 @@ services: # Services définis dans le fichier Docker Compose
   serialdb:
     image: postgres:16.2-alpine 
     container_name: serialdb 
-    restart: always 
+    restart: unless-stopped 
     environment:
       POSTGRES_DB: serialdb 
       POSTGRES_USER: admin 
       POSTGRES_PASSWORD: admin123
     networks:
-      - blackseatechnology-network 
+      - blackseatechnology-network
+    volumes:
+      - serialdb-data:/var/lib/postgresql/data
+
   
   reference-app:
     image: reference:v1.0.0
     container_name: reference-app
+    restart: unless-stopped 
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:postgresql://referencedb:5432/referencedb 
@@ -44,18 +48,20 @@ services: # Services définis dans le fichier Docker Compose
   referencedb:
     image: postgres:16.2-alpine 
     container_name: referencedb 
-    restart: always 
+    restart: unless-stopped 
     environment:
       POSTGRES_DB: referencedb 
       POSTGRES_USER: admin 
       POSTGRES_PASSWORD: admin123
     networks:
       - blackseatechnology-network 
+    volumes:
+      - referencedb-data:/var/lib/postgresql/data
 
   manifest-app:
     image: manifest:v1.0.0
     container_name: manifest-app
-    restart: always 
+    restart: unless-stopped 
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:postgresql://manifestdb:5432/manifestdb 
@@ -70,18 +76,20 @@ services: # Services définis dans le fichier Docker Compose
   manifestdb:
     image: postgres:16.2-alpine 
     container_name: manifestdb 
-    restart: always 
+    restart: unless-stopped 
     environment:
       POSTGRES_DB: manifestdb 
       POSTGRES_USER: admin 
       POSTGRES_PASSWORD: admin123
     networks:
       - blackseatechnology-network 
+    volumes:
+      - manifestdb-data:/var/lib/postgresql/data
 
   consolidation-app:
     image: consolidation:v1.0.0
     container_name: consolidation-app
-    restart: always 
+    restart: unless-stopped 
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_DATASOURCE_URL=jdbc:postgresql://consolidationdb:5432/consolidationdb 
@@ -96,18 +104,20 @@ services: # Services définis dans le fichier Docker Compose
   consolidationdb:
     image: postgres:16.2-alpine 
     container_name: consolidationdb 
-    restart: always 
+    restart: unless-stopped 
     environment:
       POSTGRES_DB: consolidationdb 
       POSTGRES_USER: admin 
       POSTGRES_PASSWORD: admin123
     networks:
       - blackseatechnology-network 
+    volumes:
+      - consolidationdb-data:/var/lib/postgresql/data
 
   smartkey-app: # Déclaration du service smartkey-app
     image: smartkey:v1.0.0 # Image utilisée pour le service smartkey-app
     container_name: smartkey-app # Nom du conteneur smartkey-app
-    restart: always 
+    restart: unless-stopped 
     # ports: # Mapping des ports
     #   - '8550:8550' # Mappage du port 8550 de l'hôte au port 8550 du conteneur
     environment: # Variables d'environnement du conteneur
@@ -124,7 +134,7 @@ services: # Services définis dans le fichier Docker Compose
   smartKeydb: # Déclaration du service SmartKeydb
     image: postgres:16.2-alpine  # Utilisation de l'image postgres
     container_name: smartKeydb # Nom du conteneur SmartKeydb
-    restart: always # Toujours redémarrer le conteneur en cas d'échec
+    restart: unless-stopped # Toujours redémarrer le conteneur en cas d'échec
     environment: # Configuration des variables d'environnement
       POSTGRES_DB: smartKeydb # Nom de la base de données PostgreSQL
       POSTGRES_USER: admin # Nom de l'utilisateur PostgreSQL
@@ -133,18 +143,20 @@ services: # Services définis dans le fichier Docker Compose
     #   - "5432:5432" # Mappage du port 5432 de l'hôte au port 5432 du conteneur
     networks: # Connexion aux réseaux
       - blackseatechnology-network # Connexion au réseau blackseatechnology-network
+    volumes:
+      - smartkeydb-data:/var/lib/postgresql/data
 
   # Configuration du service Gateway
   gateway-app: # Définition du nom du service application dans le docker-compose
     image: gateway:v1.0.0 # Nom de mon image
     container_name: gateway-app # Nom affiché lorsque le conteneur est prêt
-    restart: always 
+    restart: unless-stopped 
     # ports:
     #   - '8340:8340' # Mappage de port pour exposer mon application
     environment:
       - SPRING_PROFILES_ACTIVE=dev # Variables d'environnement utilisées pour modifier les fonctionnalités du conteneur
-      - VIRTUAL_HOST=smartcustoms.app
-      - LETSENCRYPT_HOST=smartcustoms.app
+      - VIRTUAL_HOST=dev.smartcustoms.app
+      - LETSENCRYPT_HOST=dev.smartcustoms.app
       - VIRTUAL_PORT=8340
     networks:
       - blackseatechnology-network
@@ -153,23 +165,38 @@ services: # Services définis dans le fichier Docker Compose
 
   pg-admin:
     image: dpage/pgadmin4:8.4
-    restart: always
+    restart: unless-stopped
     container_name: pg-admin
     # ports:
     #   - 5050:80
     environment:
       - PGADMIN_DEFAULT_EMAIL=jean-michel.masikini@blackseatechnology.com
       - PGADMIN_DEFAULT_PASSWORD=admin123
-      - VIRTUAL_HOST=pgadmin.smartcustoms.app
-      - LETSENCRYPT_HOST=pgadmin.smartcustoms.app
+      - VIRTUAL_HOST=pgadmin.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=pgadmin.dev.smartcustoms.app
     networks:
       - blackseatechnology-network  
-
+  # Vault Services
+  vault:
+    container_name: smartcustoms-vault
+    image: hashicorp/vault:1.15.6
+    restart: unless-stopped 
+    cap_add:
+      - IPC_LOCK
+    # ports:
+    #   - 8200:8200
+    networks:
+      - blackseatechnology-network
+    environment:
+      - VIRTUAL_HOST=vault.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=vault.dev.smartcustoms.app
+      - VIRTUAL_PORT=8200
+        
 #Nginx proxy configuration
   nginx-proxy:
     image: jwilder/nginx-proxy
     container_name: nginx-proxy
-    restart: always 
+    restart: unless-stopped 
     ports:
     - "80:80"
     - "443:443"
@@ -185,9 +212,9 @@ services: # Services définis dans le fichier Docker Compose
   nginx-proxy-letsencrypt:
     image: jrcs/letsencrypt-nginx-proxy-companion
     container_name: nginx-proxy-letsencrypt
-    restart: always 
+    restart: unless-stopped 
     networks:
-    - blackseatechnology-network
+      - blackseatechnology-network
     volumes:
     - /var/run/docker.sock:/var/run/docker.sock:ro
     - ./etc/nginx/certs:/etc/nginx/certs
@@ -207,4 +234,10 @@ networks: # Définition des réseaux
     #     - subnet: 172.18.0.0/16 # Sous-réseau IP pour le réseau
     #       gateway: 172.18.0.1 # Passerelle du sous-réseau IP
 volumes:
-    nginx_proxy_html:
+  nginx_proxy_html:
+  serialdb-data:
+  referencedb-data:
+  manifestdb-data:
+  consolidationdb-data:
+  smartkeydb-data:
+
