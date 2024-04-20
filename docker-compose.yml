@@ -241,5 +241,7 @@ volumes:
   referencedb-data:
   manifestdb-data:
   consolidationdb-data:
-  smartkeydb-data:
+  smartkeydb-data-new:
+  pgadmin-data:
+  
 
