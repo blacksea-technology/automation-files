@@ -144,7 +144,7 @@ services: # Services définis dans le fichier Docker Compose
     networks: # Connexion aux réseaux
       - blackseatechnology-network # Connexion au réseau blackseatechnology-network
     volumes:
-      - smartkeydb-data:/var/lib/postgresql/data
+      - smartkeydb-data-new:/var/lib/postgresql/data
 
   # Configuration du service Gateway
   gateway-app: # Définition du nom du service application dans le docker-compose
@@ -176,6 +176,8 @@ services: # Services définis dans le fichier Docker Compose
       - LETSENCRYPT_HOST=pgadmin.dev.smartcustoms.app
     networks:
       - blackseatechnology-network  
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
   # Vault Services
   vault:
     container_name: smartcustoms-vault
