@@ -176,8 +176,6 @@ services: # Services définis dans le fichier Docker Compose
       - LETSENCRYPT_HOST=pgadmin.dev.smartcustoms.app
     networks:
       - blackseatechnology-network  
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
   # Vault Services
   vault:
     container_name: smartcustoms-vault
@@ -242,6 +240,6 @@ volumes:
   manifestdb-data:
   consolidationdb-data:
   smartkeydb-data-new:
-  pgadmin-data:
+
   
 
