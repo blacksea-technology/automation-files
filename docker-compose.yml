@@ -169,8 +169,8 @@ services: # Services définis dans le fichier Docker Compose
     container_name: redis-server 
     networks:
      - blackseatechnology-network 
-    volumes:
-      - redis-data:/usr/local/etc/redis
+   # volumes:
+    #  - redis-data:/usr/local/etc/redis
 
 #pgadmin
   pg-admin:
@@ -250,7 +250,7 @@ volumes:
   manifestdb-data:
   consolidationdb-data:
   smartkeydb-data-new:
-  redis-data:
+  #redis-data:
 
   
 
