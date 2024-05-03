@@ -163,8 +163,18 @@ services: # Services définis dans le fichier Docker Compose
     depends_on:
       - smartkey-app # Déclaration de la dépendance du service gateway-app sur smartkey-app
 
+#Redis-server
+  redis-server:
+    image: redis 
+    container_name: redis-server 
+    networks:
+     - blackseatechnology-network 
+    volumes:
+      - redis-data:/usr/local/etc/redis
+
+#pgadmin
   pg-admin:
-    image: dpage/pgadmin4:8.4
+    image: dpage/pgadmin4 #dpage/pgadmin4:8.4
     restart: unless-stopped
     container_name: pg-admin
     # ports:
