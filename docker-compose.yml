@@ -305,7 +305,7 @@ services: # Services définis dans le fichier Docker Compose
     networks:
      - blackseatechnology-network 
     volumes:
-      - redis-data:/usr/local/etc/redis
+     - redis-data:/usr/local/etc/redis
 
 #pgadmin
   pg-admin:
@@ -385,8 +385,13 @@ volumes:
   manifestdb-data:
   consolidationdb-data:
   smartkeydb-data-new:
+<<<<<<< HEAD
   certs:
   esdata01:
   kibanadata:
+=======
+  redis-data:
+
+>>>>>>> 6b571b73d2bc904ad2775c1be545fc59d0039e7b
   
 
