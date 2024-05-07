@@ -5,6 +5,8 @@ services: # Services définis dans le fichier Docker Compose
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.3
     container_name: setup
+    networks: 
+      - blackseatechnology-network 
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
     user: "0"
@@ -62,6 +64,8 @@ services: # Services définis dans le fichier Docker Compose
     depends_on:
       setup:
         condition: service_healthy
+    networks: 
+      - blackseatechnology-network 
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.3
     container_name: es01
     labels:
@@ -69,8 +73,8 @@ services: # Services définis dans le fichier Docker Compose
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
       - esdata01:/usr/share/elasticsearch/data
-    ports:
-      - 9200:9200
+    # ports:
+    #   - 9200:9200
     environment:
       - node.name=es01
       - cluster.name=docker-cluster
@@ -114,8 +118,8 @@ services: # Services définis dans le fichier Docker Compose
     volumes:
       - certs:/usr/share/kibana/config/certs
       - kibanadata:/usr/share/kibana/data
-    ports:
-      - 5601:5601
+    # ports:
+    #   - 5601:5601
     environment:
       - SERVERNAME=kibana
       - ELASTICSEARCH_HOSTS=https://es01:9200
@@ -125,6 +129,9 @@ services: # Services définis dans le fichier Docker Compose
       - XPACK_SECURITY_ENCRYPTIONKEY=${ENCRYPTION_KEY}
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${ENCRYPTION_KEY}
       - XPACK_REPORTING_ENCRYPTIONKEY=${ENCRYPTION_KEY}
+      - VIRTUAL_HOST=kibana.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=kibana.dev.smartcustoms.app
+      - VIRTUAL_PORT=5601
     mem_limit: ${KB_MEM_LIMIT}
     healthcheck:
       test:
@@ -135,6 +142,8 @@ services: # Services définis dans le fichier Docker Compose
       interval: 10s
       timeout: 10s
       retries: 120
+    networks: 
+      - blackseatechnology-network 
 
 
   serial-app:
@@ -231,23 +240,24 @@ services: # Services définis dans le fichier Docker Compose
       - SPRING_DATASOURCE_USERNAME=admin 
       - SPRING_DATASOURCE_PASSWORD=admin123
     depends_on: 
-      - consolidationdb 
+      # - consolidationdb 
+      - es01
     networks: 
       - blackseatechnology-network 
 
   
-  consolidationdb:
-    image: postgres:16.2-alpine 
-    container_name: consolidationdb 
-    restart: unless-stopped 
-    environment:
-      POSTGRES_DB: consolidationdb 
-      POSTGRES_USER: admin 
-      POSTGRES_PASSWORD: admin123
-    networks:
-      - blackseatechnology-network 
-    volumes:
-      - consolidationdb-data:/var/lib/postgresql/data
+  # consolidationdb:
+  #   image: postgres:16.2-alpine 
+  #   container_name: consolidationdb 
+  #   restart: unless-stopped 
+  #   environment:
+  #     POSTGRES_DB: consolidationdb 
+  #     POSTGRES_USER: admin 
+  #     POSTGRES_PASSWORD: admin123
+  #   networks:
+  #     - blackseatechnology-network 
+  #   volumes:
+  #     - consolidationdb-data:/var/lib/postgresql/data
 
   smartkey-app: # Déclaration du service smartkey-app
     image: smartkey:v1.0.0 # Image utilisée pour le service smartkey-app
@@ -385,13 +395,8 @@ volumes:
   manifestdb-data:
   consolidationdb-data:
   smartkeydb-data-new:
-<<<<<<< HEAD
   certs:
   esdata01:
   kibanadata:
-=======
-  redis-data:
-
->>>>>>> 6b571b73d2bc904ad2775c1be545fc59d0039e7b
   
 
