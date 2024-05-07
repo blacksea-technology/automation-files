@@ -250,6 +250,7 @@ volumes:
   manifestdb-data:
   consolidationdb-data:
   smartkeydb-data-new:
+  redis-data:
 
   
 
