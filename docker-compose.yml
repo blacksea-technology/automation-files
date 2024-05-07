@@ -246,18 +246,18 @@ services: # Services définis dans le fichier Docker Compose
       - blackseatechnology-network 
 
   
-  # consolidationdb:
-  #   image: postgres:16.2-alpine 
-  #   container_name: consolidationdb 
-  #   restart: unless-stopped 
-  #   environment:
-  #     POSTGRES_DB: consolidationdb 
-  #     POSTGRES_USER: admin 
-  #     POSTGRES_PASSWORD: admin123
-  #   networks:
-  #     - blackseatechnology-network 
-  #   volumes:
-  #     - consolidationdb-data:/var/lib/postgresql/data
+  consolidationdb:
+    image: postgres:16.2-alpine 
+    container_name: consolidationdb 
+    restart: unless-stopped 
+    environment:
+      POSTGRES_DB: consolidationdb 
+      POSTGRES_USER: admin 
+      POSTGRES_PASSWORD: admin123
+    networks:
+      - blackseatechnology-network 
+    volumes:
+      - consolidationdb-data:/var/lib/postgresql/data
 
   smartkey-app: # Déclaration du service smartkey-app
     image: smartkey:v1.0.0 # Image utilisée pour le service smartkey-app
