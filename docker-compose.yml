@@ -240,8 +240,8 @@ services: # Services définis dans le fichier Docker Compose
       - SPRING_DATASOURCE_USERNAME=admin 
       - SPRING_DATASOURCE_PASSWORD=admin123
     depends_on: 
-      # - consolidationdb 
-      - es01
+      - consolidationdb 
+      #- es01
     networks: 
       - blackseatechnology-network 
 
