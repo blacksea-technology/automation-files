@@ -170,7 +170,7 @@ services: # Services définis dans le fichier Docker Compose
     networks:
      - blackseatechnology-network 
     volumes:
-      - redis-data:/usr/local/etc/redis
+     - redis-data:/usr/local/etc/redis
 
 #pgadmin
   pg-admin:
