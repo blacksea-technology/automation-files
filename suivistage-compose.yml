@@ -11,7 +11,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=admin123
       - VIRTUAL_HOST=suivistage.ddns.net
       - LETSENCRYPT_HOST=suivistage.ddns.net
-      # - VIRTUAL_PORT=8340
+      - VIRTUAL_PORT=8100
     depends_on: 
       - suivistagebd 
     networks: 
