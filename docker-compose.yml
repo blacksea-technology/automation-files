@@ -186,6 +186,52 @@ services: # Services définis dans le fichier Docker Compose
       - LETSENCRYPT_HOST=pgadmin.dev.smartcustoms.app
     networks:
       - blackseatechnology-network  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.3
+    container_name: elasticsearch
+    environment:
+      - cluster.name=elastic-cluster
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=elastic123
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    mem_limit: 1073741824
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    # ports:
+    #   - 9200:9200
+    networks:
+      - blackseatechnology-network
+
+  kibana:
+    depends_on: 
+      - elasticsearch
+    image: 'docker.elastic.co/kibana/kibana:8.13.3'
+    container_name: kibana
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=kibana123
+      - VIRTUAL_HOST=kibana.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=kibana.dev.smartcustoms.app
+      - VIRTUAL_PORT=5601
+    mem_limit: 1073741824
+    # ports:
+    #   - '5601:5601'
+    networks:
+      - blackseatechnology-network
+
+
+
+
+
+  
   # Vault Services
   vault:
     container_name: smartcustoms-vault
@@ -234,6 +280,12 @@ services: # Services définis dans le fichier Docker Compose
       DEFAULT_EMAIL: jean-michel.masikini@blackseatechnology.com
       NGINX_PROXY_CONTAINER: nginx-proxy
 
+
+
+
+
+  
+
 #Declaration of my Network
 networks: # Définition des réseaux
   blackseatechnology-network: # Nom du réseau definic
@@ -251,6 +303,7 @@ volumes:
   consolidationdb-data:
   smartkeydb-data-new:
   redis-data:
+  esdata1:
 
   
 
