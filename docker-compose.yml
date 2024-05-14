@@ -195,8 +195,9 @@ services: # Services définis dans le fichier Docker Compose
       - xpack.security.enabled=false
       - discovery.type=single-node
       - ELASTIC_PASSWORD=elastic123
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    mem_limit: 1073741824
+      #- "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    mem_limit: 2g #1073741824
     ulimits:
       memlock:
         soft: -1
