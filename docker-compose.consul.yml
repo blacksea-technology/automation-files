@@ -1,0 +1,661 @@
+version: '3.9'
+x-postgres-common-consolidationPGdb:
+  &postgres-common-consolidationPGdb
+  image: postgres:16.2-alpine
+  user: postgres
+  restart: always
+  healthcheck:
+    test: 'pg_isready -U admin --dbname=consolidationPGdb'
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+x-postgres-common-manifestdb:
+  &postgres-common-manifestdb
+  image: postgres:16.2-alpine
+  user: postgres
+  restart: always
+  healthcheck:
+    test: 'pg_isready -U admin --dbname=manifestdb'
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+x-postgres-common-referencedb:
+  &postgres-common-referencedb
+  image: postgres:16.2-alpine
+  user: postgres
+  restart: always
+  healthcheck:
+    test: 'pg_isready -U admin --dbname=referencedb'
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+x-postgres-common-serialdb:
+  &postgres-common-serialdb
+  image: postgres:16.2-alpine
+  user: postgres
+  restart: always
+  healthcheck:
+    test: 'pg_isready -U admin --dbname=serialdb'
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+x-postgres-common-smartKeydb:
+  &postgres-common-smartKeydb
+  image: postgres:16.2-alpine
+  user: postgres
+  restart: always
+  healthcheck:
+    test: 'pg_isready -U admin --dbname=smartKeydb'
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+services:
+
+  #Nginx proxy configuration
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    container_name: nginx-proxy
+    restart: unless-stopped 
+    ports:
+    - "80:80"
+    - "443:443"
+    networks:
+      - blackseatechnology-network
+    environment:
+      DHPARAM_GENERATION: "false"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./etc/nginx/certs:/etc/nginx/certs
+      - ./etc/nginx/vhost.d:/etc/nginx/vhost.d
+      - nginx_proxy_html:/usr/share/nginx/html
+    nginx-proxy-letsencrypt:
+      image: jrcs/letsencrypt-nginx-proxy-companion
+      container_name: nginx-proxy-letsencrypt
+      restart: unless-stopped 
+      networks:
+        - blackseatechnology-network
+      volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./etc/nginx/certs:/etc/nginx/certs
+      - ./etc/nginx/vhost.d:/etc/nginx/vhost.d
+      - nginx_proxy_html:/usr/share/nginx/html
+      environment:
+        DEFAULT_EMAIL: jean-michel.masikini@blackseatechnology.com
+        NGINX_PROXY_CONTAINER: nginx-proxy
+
+  gateway:
+    build: .
+    image: gateway:v1.0.0
+    container_name: gateway
+    networks:
+      blackseatechnology-network:
+    environment:   
+      SPRING_PROFILES_ACTIVE: dev
+      VIRTUAL_HOST: dev.smartcustoms.app
+      LETSENCRYPT_HOST: dev.smartcustoms.app
+      VIRTUAL_PORT: 8340
+  consolidationpgdb_primary:
+    <<: *postgres-common-consolidationPGdb
+    container_name: consolidationpgdb_primary 
+    # ports:
+    #   - 5444:5432
+    networks:
+      blackseatechnology-network:
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_DB: consolidationPGdb
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+    volumes:
+      - ./00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
+
+  consolidationpgdb_replica01:
+    <<: *postgres-common
+    container_name: consolidationpgdb_replica01 
+    # ports:
+    #   - 5445:5432
+    networks:
+      blackseatechnology-network:
+    environment:
+      PGUSER: replicator01
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication01_slot --host=consolidationpgdb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - consolidationpgdb_primary
+  consolidationpgdb_replica02:
+    <<: *postgres-common
+    container_name: consolidationpgdb_replica02 
+    ports:
+      - 5446:5432
+    networks:
+      blackseatechnology-network:
+    environment:
+      PGUSER: replicator02
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication02_slot --host=consolidationpgdb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - consolidationpgdb_primary
+  consolidationpg:
+    depends_on: 
+      - consolidationpgdb_primary 
+    build: .
+    image: consolidationpg:v1.0.0
+    networks:
+      blackseatechnology-network:
+    environment:   
+      SPRING_PROFILES_ACTIVE: dev
+    deploy:
+      replicas: 3  
+  manifestdb_primary:
+    <<: *postgres-common-manifestdb
+    container_name: manifestdb_primary 
+    networks:
+      blackseatchnology-network:
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_DB: manifestdb
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+    volumes:
+      - ./00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
+
+  manifestdb_replica01:
+    <<: *postgres-common
+    container_name: manifestdb_replica01 
+    networks:
+      blackseatchnology-network:
+    environment:
+      PGUSER: replicator01
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication01_slot --host=manifestdb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - manifestdb_primary
+  manifestdb_replica02:
+    <<: *postgres-common
+    container_name: manifestdb_replica02 
+    networks:
+      blackseatchnology-network:
+    environment:
+      PGUSER: replicator02
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication02_slot --host=manifestdb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - manifestdb_primary
+  manifest:
+    depends_on: 
+      - manifestdb_primary 
+    build: .
+    image: manifest:v1.0.0
+    networks:
+      blackseatchnology-network:
+    environment:   
+      SPRING_PROFILES_ACTIVE: dev
+    deploy:
+      replicas: 3  
+
+  referencedb_primary:
+    <<: *postgres-common-referencedb
+    container_name: referencedb_primary 
+    networks:
+      blackseatechnology-network:
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_DB: referencedb
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+    volumes:
+      - ./00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
+
+  referencedb_replica01:
+    <<: *postgres-common
+    container_name: referencedb_replica01 
+    networks:
+      blackseatechnology-network:
+    environment:
+      PGUSER: replicator01
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication01_slot --host=referencedb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - referencedb_primary
+  referencedb_replica02:
+    <<: *postgres-common
+    container_name: referencedb_replica02 
+    networks:
+      blackseatechnology-network:
+    environment:
+      PGUSER: replicator02
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication02_slot --host=referencedb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - referencedb_primary
+  reference:
+    depends_on: 
+      - referencedb_primary 
+    build: .
+    image: reference:v1.0.0
+    networks:
+      blackseatechnology-network:
+    environment:   
+      SPRING_PROFILES_ACTIVE: dev
+    deploy:
+      replicas: 3  
+
+  serialdb_primary:
+    <<: *postgres-common-serialdb
+    container_name: serialdb_primary 
+    networks:
+      blackseatechnology-network:
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_DB: serialdb
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+    volumes:
+      - ./00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
+
+  serialdb_replica01:
+    <<: *postgres-common
+    container_name: serialdb_replica01 
+    networks:
+      blackseatechnology-network:
+    environment:
+      PGUSER: replicator01
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication01_slot --host=serialdb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - serialdb_primary
+  serialdb_replica02:
+    <<: *postgres-common
+    container_name: serialdb_replica02 
+    networks:
+      blackseatechnology-network:
+    environment:
+      PGUSER: replicator02
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication02_slot --host=serialdb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - serialdb_primary
+  serial:
+    depends_on: 
+      - serialdb_primary 
+    build: .
+    image: serial:v1.0.0
+    networks:
+      blackseatechnology-network:
+    environment:   
+      SPRING_PROFILES_ACTIVE: dev
+    deploy:
+      replicas: 3 
+  
+  smartKeydb_primary:
+    <<: *postgres-common-smartKeydb
+    container_name: smartKeydb_primary 
+    networks:
+      blackseatechnology-network:
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_DB: smartKeydb
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+    volumes:
+      - ./00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
+
+  smartKeydb_replica01:
+    <<: *postgres-common
+    container_name: smartKeydb_replica01 
+    networks:
+      blackseatechnology-network:
+    environment:
+      PGUSER: replicator01
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication01_slot --host=smartKeydb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - smartKeydb_primary
+  smartKeydb_replica02:
+    <<: *postgres-common
+    container_name: smartKeydb_replica02 
+    networks:
+      blackseatechnology-network:
+    environment:
+      PGUSER: replicator02
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication02_slot --host=smartKeydb_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - smartKeydb_primary
+  smartkey:
+    depends_on: 
+      - smartKeydb_primary 
+    build: .
+    image: smartkey:v1.0.0
+    networks:
+      blackseatechnology-network:
+    environment:   
+      SPRING_PROFILES_ACTIVE: dev
+    deploy:
+      replicas: 1  
+  #Redis-server
+  redis-server:
+    image: redis 
+    container_name: redis-server 
+    networks:
+     - blackseatechnology-network 
+    volumes:
+     - redis-data:/usr/local/etc/redis
+
+
+  #pgadmin
+  pg-admin:
+    image: dpage/pgadmin4 #dpage/pgadmin4:8.4
+    restart: unless-stopped
+    container_name: pg-admin
+    # ports:
+    #   - 5050:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=jean-michel.masikini@blackseatechnology.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+      - VIRTUAL_HOST=pgadmin.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=pgadmin.dev.smartcustoms.app
+    networks:
+      - blackseatechnology-network  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.3
+    container_name: elasticsearch
+    environment:
+      - cluster.name=elastic-cluster
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=elastic123
+      #- "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    mem_limit: 2g #1073741824
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    # ports:
+    #   - 9200:9200
+    networks:
+      - blackseatechnology-network
+
+  kibana:
+    depends_on: 
+      - elasticsearch
+    image: 'docker.elastic.co/kibana/kibana:8.13.3'
+    container_name: kibana
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=kibana123
+      - VIRTUAL_HOST=kibana.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=kibana.dev.smartcustoms.app
+      - VIRTUAL_PORT=5601
+    mem_limit: 1073741824
+    # ports:
+    #   - '5601:5601'
+    networks:
+      - blackseatechnology-network
+
+  # Vault Services
+  vault:
+    container_name: smartcustoms-vault
+    image: hashicorp/vault:1.15.6
+    restart: unless-stopped 
+    cap_add:
+      - IPC_LOCK
+    # ports:
+    #   - 8200:8200
+    networks:
+      - blackseatechnology-network
+    environment:
+      - VIRTUAL_HOST=vault.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=vault.dev.smartcustoms.app
+      - VIRTUAL_PORT=8200
+    volumes:
+      - config/:/vault/config.d
+
+  consul1:
+    volumes:
+        - consul1:/var/lib/consul/data
+    container_name: consul1
+    # ports:
+    #     - 8500:8500
+    networks:
+        - blackseatechnology-network
+    environment:
+        - CONSUL_BIND_INTERFACE=eth0
+        - VIRTUAL_HOST=consul.dev.smartcustoms.app
+        - LETSENCRYPT_HOST=consul.dev.smartcustoms.app
+        - VIRTUAL_PORT=8500
+    image: hashicorp/consul:1.18.2
+    command: agent -server -bootstrap-expect=2 -node=consul1 -client=0.0.0.0
+  consul2:
+    volumes:
+        - consul2:/var/lib/consul/data
+    depends_on:
+      - consul1
+    container_name: smartcustoms-consul-2
+    # ports:
+    #     - 8500:8500
+    networks:
+        - blackseatechnology-network
+    environment:
+        - CONSUL_BIND_INTERFACE=eth0
+    image: hashicorp/consul:1.18.2
+    command: agent -server -node=consul2 -join=consul1
+  consul3:
+    volumes:
+        - consul3:/var/lib/consul/data
+    depends_on:
+      - consul1
+    container_name: smartcustoms-consul-3
+    # ports:
+    #     - 8500:8500
+    networks:
+        - blackseatechnology-network
+    environment:
+        - CONSUL_BIND_INTERFACE=eth0
+    image: hashicorp/consul:1.18.2
+    command: agent -server -node=consul3 -join=consul1
+  consul4:
+    volumes:
+        - consul4:/var/lib/consul/data
+    container_name: smartcustoms-consul-4
+    depends_on:
+      - consul1
+    # ports:
+    #     - 8500:8500
+    networks:
+        - blackseatechnology-network
+    environment:
+        - CONSUL_BIND_INTERFACE=eth0
+    image: hashicorp/consul:1.18.2
+    command: agent -server -node=consul4 -join=consul1
+  consul5:
+    volumes:
+        - consul5:/var/lib/consul/data
+    container_name: smartcustoms-consul-5
+    depends_on:
+      - consul1
+    # ports:
+    #     - 8500:8500
+    networks:
+        - blackseatechnology-network
+    environment:
+        - CONSUL_BIND_INTERFACE=eth0
+    image: hashicorp/consul:1.18.2
+    command: agent -server -node=consul5 -join=consul1
+
+
+
+#Declaration of my Network
+networks: # Définition des réseaux
+  blackseatechnology-network: # Nom du réseau definic
+    name: blackseatechnology-network # Nom du réseau spécifié
+    driver: bridge # Utilisation du driver bridge
+    # ipam: # Gestion des adresses IP
+    #   config: # Configuration des paramètres IPAM
+    #     - subnet: 172.18.0.0/16 # Sous-réseau IP pour le réseau
+    #       gateway: 172.18.0.1 # Passerelle du sous-réseau IP
+volumes:
+  nginx_proxy_html:
+  serialdb-data:
+  referencedb-data:
+  manifestdb-data:
+  consolidationdb-data:
+  smartkeydb-data-new:
+  redis-data:
+  esdata1:
+  consul1:
+  consul2:
+  consul3:
+  consul4:
+  consul5:
