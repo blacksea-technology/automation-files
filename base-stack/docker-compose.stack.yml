@@ -1,0 +1,212 @@
+services: # Services définis dans le fichier Docker Compose
+#Redis-server
+  redis-server:
+    image: redis
+    container_name: redis-server
+    networks:
+     - blackseatechnology-network
+    volumes:
+     - redis-data:/usr/local/etc/redis
+
+#pgadmin
+  pg-admin:
+    image: dpage/pgadmin4 #dpage/pgadmin4:8.4
+    restart: unless-stopped
+    container_name: pg-admin
+    # ports:
+    #   - 5050:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=jean-michel.masikini@blackseatechnology.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+      - VIRTUAL_HOST=pgadmin.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=pgadmin.dev.smartcustoms.app
+    networks:
+      - blackseatechnology-network
+        #volumes:
+        #- pgadmin:/pgadmin
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.3
+    container_name: elasticsearch
+    environment:
+      - cluster.name=elastic-cluster
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=elastic123
+      #- "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    mem_limit: 2g #1073741824
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    # ports:
+    #   - 9200:9200
+    networks:
+      - blackseatechnology-network
+
+  kibana:
+    depends_on:
+      - elasticsearch
+    image: 'docker.elastic.co/kibana/kibana:8.13.3'
+    container_name: kibana
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=kibana123
+      - VIRTUAL_HOST=kibana.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=kibana.dev.smartcustoms.app
+      - VIRTUAL_PORT=5601
+    mem_limit: 1073741824
+    # ports:
+    #   - '5601:5601'
+    networks:
+      - blackseatechnology-network
+  # Vault Services
+  vault:
+    container_name: smartcustoms-vault
+    image: hashicorp/vault:1.15.6
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    # ports:
+    #   - 8200:8200
+    networks:
+      - blackseatechnology-network
+    environment:
+      - VIRTUAL_HOST=vault.dev.smartcustoms.app
+      - LETSENCRYPT_HOST=vault.dev.smartcustoms.app
+      - VIRTUAL_PORT=8200
+
+#Nginx proxy configuration
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+    - "80:80"
+    - "443:443"
+    networks:
+      - blackseatechnology-network
+    environment:
+      DHPARAM_GENERATION: "false"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./etc/nginx/certs:/etc/nginx/certs
+      - ./etc/nginx/vhost.d:/etc/nginx/vhost.d
+      - ./etc/nginx/conf.d:/etc/nginx/conf.d
+      - nginx_proxy_html:/usr/share/nginx/html
+  nginx-proxy-letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    container_name: nginx-proxy-letsencrypt
+    restart: unless-stopped
+    networks:
+      - blackseatechnology-network
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - ./etc/nginx/certs:/etc/nginx/certs
+    - ./etc/nginx/vhost.d:/etc/nginx/vhost.d
+    - ./etc/nginx/conf.d:/etc/nginx/conf.d
+    - nginx_proxy_html:/usr/share/nginx/html
+    environment:
+      DEFAULT_EMAIL: jean-michel.masikini@blackseatechnology.com
+      NGINX_PROXY_CONTAINER: nginx-proxy
+
+  consul1:
+    volumes:
+        - consul1:/var/lib/consul/data
+    container_name: consul1
+    restart: unless-stopped
+    # ports:
+    #     - 8500:8500
+    networks:
+        - blackseatechnology-network
+    environment:
+        - CONSUL_BIND_INTERFACE=eth0
+        - VIRTUAL_HOST=consul.dev.smartcustoms.app
+        - LETSENCRYPT_HOST=consul.dev.smartcustoms.app
+        - VIRTUAL_PORT=8500
+    image: hashicorp/consul:latest
+    command: agent -server -bootstrap-expect=2 -node=consul1 -client=0.0.0.0 -ui
+  consul2:
+    restart: unless-stopped
+    volumes:
+        - consul2:/var/lib/consul/data
+    depends_on:
+      - consul1
+    container_name: smartcustoms-consul-2
+    # ports:
+    #     - 8500:8500
+    networks:
+        - blackseatechnology-network
+    environment:
+        - CONSUL_BIND_INTERFACE=eth0
+    image: hashicorp/consul:latest
+    command: agent -server -node=consul2 -join=consul1
+  # consul3:
+  #   volumes:
+  #       - consul3:/var/lib/consul/data
+  #   depends_on:
+  #     - consul1
+  #   container_name: smartcustoms-consul-3
+  #   # ports:
+  #   #     - 8500:8500
+  #   networks:
+  #       - blackseatechnology-network
+  #   environment:
+  #       - CONSUL_BIND_INTERFACE=eth0
+  #   image: hashicorp/consul:latest
+  #   command: agent -server -node=consul3 -join=consul1
+  # consul4:
+  #   volumes:
+  #       - consul4:/var/lib/consul/data
+  #   container_name: smartcustoms-consul-4
+  #   depends_on:
+  #     - consul1
+  #   # ports:
+  #   #     - 8500:8500
+  #   networks:
+  #       - blackseatechnology-network
+  #   environment:
+  #       - CONSUL_BIND_INTERFACE=eth0
+  #   image: hashicorp/consul:latest
+  #   command: agent -server -node=consul4 -join=consul1
+  # consul5:
+  #   volumes:
+  #       - consul5:/var/lib/consul/data
+  #   container_name: smartcustoms-consul-5
+  #   depends_on:
+  #     - consul1
+  #   # ports:
+  #   #     - 8500:8500
+  #   networks:
+  #       - blackseatechnology-network
+  #   environment:
+  #       - CONSUL_BIND_INTERFACE=eth0
+  #   image: hashicorp/consul:latest
+  #   command: agent -server -node=consul5 -join=consul1
+
+
+
+
+
+networks:
+  blackseatechnology-network:
+    name: blackseatechnology-network
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 172.18.0.0/16
+        gateway: 172.18.0.1
+volumes:
+  nginx_proxy_html:
+  redis-data:
+  esdata1:
+  consul1:
+  consul2:
+  # consul3:
+  # consul4:
+  # consul5:
