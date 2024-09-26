@@ -1,0 +1,15 @@
+services:    
+ Visitons_Dubai_D231:
+    image: Visitons_Dubai_D231:v1.0.0
+    container_name: Visitons_Dubai_D231
+    restart: unless-stopped 
+    environment:
+      - VIRTUAL_HOST=visitonsdubai.net
+      - LETSENCRYPT_HOST=visitonsdubai.net
+      - VIRTUAL_PORT=80
+    networks: 
+      - blackseatechnology-network 
+networks:
+  blackseatechnology-network:
+    name: blackseatechnology-network
+    driver: bridge
