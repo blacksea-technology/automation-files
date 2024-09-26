@@ -9,8 +9,8 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://suivistagebd:5432/suivistagebd 
       - SPRING_DATASOURCE_USERNAME=admin 
       - SPRING_DATASOURCE_PASSWORD=admin123
-      - VIRTUAL_HOST=suivistage.ddns.net
-      - LETSENCRYPT_HOST=suivistage.ddns.net
+      - VIRTUAL_HOST=suivistage.com
+      - LETSENCRYPT_HOST=suivistage.com
       - VIRTUAL_PORT=8100
     depends_on: 
       - suivistagebd 
