@@ -1,6 +1,6 @@
 services:    
  Visitons_Dubai_D231:
-    image: Visitons_Dubai_D231:v1.0.0
+    image: visitonsdubai:v1.0.0
     container_name: Visitons_Dubai_D231
     restart: unless-stopped 
     environment:
